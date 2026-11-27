@@ -1,0 +1,12 @@
+Notes from a human on navigating CurrentForm:
+- Demo question uninteresting and confusing
+- What is the manifest?
+- Community notes connector: what is a "note registry"?
+- Experiments tab: the "question contract" card is hard to read
+- "Comparison arm" card hard to read
+- In the experiments tab, what does "bounded exposure" mean? Is there a simpler way to put this?
+- Permissions card hard to read
+- "Evaluation plan" hard to read
+- "Results" dashboard is hard
+- "Claims" tab is also hard to read
+- It's really, really hard to read the evidence JSON. We could use an LLM to extract the JSON data and make it pretty and readable - e.g. headline claim "insufficient evidence"

@@ -11,7 +11,8 @@ function nativeTooltips(scope=root){
  });
 }
 const icons=()=>{if(globalThis.lucide)lucide.createIcons({attrs:{width:16,height:16}});nativeTooltips();};
-const forecastQuestion="Will note DEMO-042’s first scored status be Helpful within seven days of creation?";
+const maxExposure=100; // maximum points an agent may stake on one question
+const forecastQuestion="Will Community Note DEMO-042’s first rating be Helpful within seven days?";
 const hostedInstructions=`ROLE
 Forecast Community Notes rating outcomes for a versioned note-writing agent. Assess the note's sources as a separate evidence-review task.
 
@@ -25,7 +26,7 @@ METHOD
 3. Select a predeclared cohort of comparable notes with completed seven-day windows. Keep pending and missing records outside the assessed denominator. Deduplicate reposts and record shared authors or topics that could correlate outcomes.
 4. Start with a Beta(1,1) prior. Update it with the cohort's first-status outcomes. Report the posterior predictive baseline, sample size and assumptions. Explain any adjustment for source quality, topic, language or distribution shift. Do not treat Helpful status as proof of factual accuracy.
 5. Return one probability in [0,1], evidence IDs, cutoff, prior, baseline, adjustment rationale, unresolved inputs and tool usage. Abstain if identity, time coverage or the contract cannot be established.
-6. For trading, submit the probability through the selected arm. Follow the 100-point exposure cap and 50-call run limit. Keep points profit separate from Brier scoring.
+6. For trading, submit the probability through the selected trading setup. Follow the ${maxExposure}-point exposure cap and 50-call run limit. Keep points profit separate from Brier scoring.
 
 RESOLUTION
 An independent reviewer checks firstNonNMRStatus and its timestamp. YES requires a first non-NMR status of Helpful by the deadline. A first Not Helpful status resolves NO. No scored status by day seven resolves NO only with sufficient data coverage; missing or delayed records remain unresolved. Record an appeal or void reason.
@@ -45,7 +46,7 @@ const sections=[
  {label:'Claims',title:'Claims',context:'Workspace',icon:'radio'},
  {label:'Reviews',title:'Agent review',context:'REVIEW-01',icon:'clipboard-check'}
 ];
-const armNames={harness:'Forecast only',fixed:'Fixed stake',bounded:'Bounded exposure'};
+const armNames={harness:'Forecast only',fixed:'Fixed stake',bounded:`Up to ${maxExposure} points`};
 const defaults={step:0,path:'hosted',arm:'bounded',versionSaved:false,run:'ready',batch:0,claim:'unresolved',hook:false,decision:'investigate',recorded:false,name:'Atlas',version:'v1.3',endpoint:'https://agent.example.invalid/a2a',instructions:hostedInstructions,activeSkill:'reader',skillRun:'',selectedMarket:0,selectedAgent:0,note:'Check the feed timestamp and rerun the stale-feed configuration.'};
 let state={...defaults};
 function applySaved(saved){
@@ -92,7 +93,7 @@ function tradeRecord(a,i,arm){
  if(arm==='harness')return null;
  const m=marketRuns[i],entry=m.prices[3],p=a.p[i],side=p>=entry?'YES':'NO';
  const price=side==='YES'?entry:1-entry;
- const stake=arm==='fixed'?50:roundPoints(Math.min(100,500*Math.abs(p-entry)));
+ const stake=arm==='fixed'?50:roundPoints(Math.min(maxExposure,500*Math.abs(p-entry)));
  const shares=stake/price,payout=side==='YES'?m.outcome:1-m.outcome;
  return {market:m.id,side,entry_yes_price:entry,share_price:price,stake,shares,entry_hour:m.hours[3],payout:roundPoints(shares*payout),net:roundPoints(shares*payout-stake)};
 }
@@ -104,6 +105,7 @@ const agentName=a=>`${state.name} · ${a.variant}`;
 const button=(text,action,primary=false)=>`<button type="button" class="cf-button ${primary?'primary':''} cursor-interaction" data-action="${action}">${text}</button>`;
 const badge=(text,warn=false)=>`<span class="cf-badge ${warn?'warn':''}">${text}</span>`;
 const kv=(label,value)=>`<div class="cf-kv"><span>${label}</span><span>${value}</span></div>`;
+const roleRow=(label,value,about)=>`<div class="cf-kv"><span>${label}</span><span>${value}</span><details class="cf-roleinfo"><summary class="cursor-interaction">What’s this?</summary><p>${about}</p></details></div>`;
 const panel=(title,body)=>`<section class="cf-panel"><h3>${title}</h3>${body}</section>`;
 const details=(title,body)=>`<details class="cf-detail"><summary class="cursor-interaction">${title}</summary><div class="cf-gap">${body}</div></details>`;
 const log=(icon,title,desc,status)=>`<div class="cf-logrow"><i data-lucide="${icon}" aria-hidden="true"></i><div>${title}<p>${desc}</p></div><span>${status}</span></div>`;
@@ -130,7 +132,7 @@ function renderAgents(){return `
   <button class="cf-button cursor-interaction" type="button" data-path="external" aria-pressed="${state.path==='external'}"><i data-lucide="plug" aria-hidden="true"></i>External endpoint</button>
   <button class="cf-button cursor-interaction" type="button" data-path="hosted" aria-pressed="${state.path==='hosted'}"><i data-lucide="blocks" aria-hidden="true"></i>Hosted agent</button>
  </div>
- ${state.path==='hosted'?panel('Forecasting task',`<h2>${forecastQuestion}</h2>${kv('Note','DEMO-042 · versioned note-writing agent')}${kv('Evidence cutoff','25 Nov 2026, 00:00 UTC')}${kv('Window closes','29 Nov 2026, 12:00 UTC')}<p class="cf-small cf-muted cf-gap">Forecast the community rating outcome. Review factual accuracy in the source assessment.</p>`):''}
+ ${state.path==='hosted'?panel('Forecasting task',`<h2>${forecastQuestion}</h2><p class="cf-small cf-muted cf-gap">A Community Note is a short fact-check shown under a social media post. Volunteers rate each note. It shows “Needs More Ratings” until enough votes arrive, then gets its first rating: Helpful or Not Helpful. Your agent predicts the chance that this note’s first rating is Helpful.</p>${kv('Note','DEMO-042 · written by an AI note-writing agent')}${kv('Note created','22 Nov 2026, 12:00 UTC')}${kv('Data cutoff','25 Nov 2026, 00:00 UTC · agent can’t use anything newer')}${kv('Deadline','29 Nov 2026, 12:00 UTC · no Helpful rating by then counts as NO, unless ratings data is missing')}`):''}
  <div class="cf-grid ${state.path==='hosted'?'cf-hosted-grid':''}">
  ${panel('Agent version',`<form id="cf-agent-form" class="cf-stack">
   <label class="cf-field">Agent name<input name="name" maxlength="60" required value="${escape(state.name)}"></label>
@@ -139,28 +141,28 @@ function renderAgents(){return `
   <div class="cf-row">${button('Save version','agent-save',true)}${state.versionSaved?button('Configure experiment <i data-lucide="arrow-right" aria-hidden="true"></i>','experiment'):''}</div>
   <div class="cf-status" id="cf-register-status" role="status" ${state.versionSaved?'':'hidden'}>${state.versionSaved?'Version saved.':''}</div>
  </form>`)}
- ${panel('Manifest',`${badge(state.versionSaved?'Registered':'Draft')}
+ ${panel('Agent summary',`${badge(state.versionSaved?'Registered':'Draft')}
   ${kv('Agent',`${escape(state.name)} / ${escape(state.version)}`)}
   ${kv('Connection',state.path==='external'?'External A2A':'Hosted')}
-  ${kv('Evidence feed',state.path==='hosted'?'cn-demo-001 / registry':'feed-current / snapshot-001')}
+  ${kv('Data source',state.path==='hosted'?'cn-demo-001 / registry':'feed-current / snapshot-001')}
   ${kv('Model / provider',state.path==='external'?'Unverified':'Not selected')}
   ${kv('Instructions',state.path==='external'?'Endpoint-controlled':'Attached')}
   ${state.path==='hosted'?kv('Skills','Read sources / connector / forecast math'):''}
   ${kv('Call limit','50 per run')}
-  ${details('Version rules','<p class="cf-small cf-muted">Save a new version after changing instructions or the evidence feed. External agents may conceal model or tool changes.</p>')}
+  ${details('Version rules','<p class="cf-small cf-muted">Save a new version after changing instructions or the data source. External agents may conceal model or tool changes.</p>')}
  `)}
  </div>${state.path==='hosted'?renderSkills():''}`;}
 function renderExperiment(){return `
- ${panel('Question contract',`${kv('Question',forecastQuestion)}${kv('Evidence cutoff','25 Nov 2026, 00:00 UTC')}${kv('Window closes','29 Nov 2026, 12:00 UTC')}${kv('Outcome source','Versioned Community Notes status history')}${kv('YES rule','First non-NMR status is Helpful within 7 days')}${kv('Missing data','Unresolved until coverage supports adjudication')}${kv('Resolver','Independent reviewer')}${kv('Configurations','Control, prompt revision, stale feed, alternate feed')}`)}
+ ${panel('Question contract',`<p class="cf-small cf-muted">The rules for scoring this forecast. They are fixed before the experiment starts, so they can’t change once the answer is known.</p>${kv('Question',forecastQuestion)}${kv('Data cutoff','25 Nov 2026, 00:00 UTC · agent can’t use anything newer')}${kv('Deadline','29 Nov 2026, 12:00 UTC · seven days after the note was created')}${kv('Answer comes from','Community Notes rating history, from a dated public snapshot')}${kv('Counts as YES','The note’s first rating after “Needs More Ratings” is Helpful, before the deadline')}${kv('Counts as NO','The first rating is Not Helpful, or the note is still unrated at the deadline and the ratings data is complete')}${kv('Missing data','If ratings data is missing or delayed, the question stays open until it can be checked')}${kv('Decided by','An independent reviewer, not the agent')}${kv('Variants tested','Control (current setup), revised instructions, outdated data, different data source')}`)}
  ${state.skillRun?details(`${skillExamples[state.skillRun].name} · example output`,`<pre id="cf-skill-output">${escape(JSON.stringify(skillOutput(state.skillRun),null,2))}</pre>`):''}
- ${panel('Comparison arm',`${[
+ ${panel('Trading setup',`${[
   ['harness','Forecast only','Probabilities and logs; no trading.'],
   ['fixed','Fixed stake','Trades from the same probabilities and prices.'],
-  ['bounded','Bounded exposure','Agent-selected stakes within the exposure limit.']
+  ['bounded',armNames.bounded,'Agent-selected stakes.']
  ].map(([value,title,desc])=>`<label class="cf-arm"><input type="radio" name="cf-arm" value="${value}" ${state.arm===value?'checked':''}><div><h3>${title}</h3><p>${desc}</p></div></label>`).join('')}`)}
  <div class="cf-grid">
- ${panel('Limits',`${kv('Starting balance','1,000 points per agent')}${kv('Maximum exposure','100 points per event')}${kv('Provider calls','50 per run')}${kv('Evidence / time','Equal allowance per configuration')}`)}
- ${panel('Permissions',`${kv('Participant',state.arm==='harness'?'Forecast':'Forecast, quote, place, sell')}${kv('Steward','Approve, amend, resolve')}${kv('Administrator','Accounts and permissions')}${kv('Resolution review','Appeal or void; agents cannot score themselves')}`)}
+ ${panel('Limits',`${kv('Starting balance','1,000 points per agent')}${kv('Maximum exposure',`${maxExposure} points per question`)}${kv('Provider calls','50 per run')}${kv('Evidence / time','Equal allowance per configuration')}`)}
+ ${panel('Permissions',`${roleRow('Participant',state.arm==='harness'?'Forecast':'Forecast, quote, place, sell',state.arm==='harness'?'The agent being tested. It submits a probability for each question and nothing else.':'The agent being tested. It submits a probability for each question and trades on it: asks for a price (quote), places bets and sells them. It can’t change the rules or decide outcomes.')}${roleRow('Steward','Approve, amend, resolve','The person running the experiment. They approve the setup, can amend it, and resolve each question by recording the final YES or NO.')}${roleRow('Administrator','Accounts and permissions','Manages user accounts and decides who gets which role.')}${roleRow('Resolution review','Appeal or void; agents cannot score themselves','Not a role, but the safeguard on outcomes. A result can be appealed, or voided so it’s left out of scoring. Agents can never mark their own forecasts.')}`)}
  </div>
  ${details('Evaluation plan',`${kv('Planned workload','120 questions / 6 batches / 4 configurations / 3 repeats')}${kv('Demo dataset','6 synthetic binary outcomes')}${kv('Pool design','Independent pools or frozen opponents')}${kv('Resolution changes','Versioned rule, review reason and appeal record')}`)}
  <div class="cf-row">${button('Open run <i data-lucide="arrow-right" aria-hidden="true"></i>','run',true)}</div>`;}
@@ -176,7 +178,7 @@ function renderRun(){const pct=state.run==='completed'?100:Math.round(state.batc
  <section class="cf-panel"><h3>Activity</h3><div class="cf-log" aria-live="polite">
  ${log('fingerprint','Manifest validation',`${escape(state.name)} / ${escape(state.version)} · snapshot-001`,state.batch>=1?badge('Complete'):'Waiting')}
  ${log('gauge','Forecast',`Control · p = 0.70 · evidence and usage in trace`,state.batch>=2?badge('Recorded'):'Waiting')}
- ${log(state.arm==='harness'?'file-text':'scale',state.arm==='harness'?'Forecast record':'Position',state.arm==='harness'?'Forecast-only arm.':'Starting balance: 1,000 points · exposure cap: 100 points',state.batch>=2?badge(state.arm==='harness'?'Saved':'Quoted'):'Waiting')}
+ ${log(state.arm==='harness'?'file-text':'scale',state.arm==='harness'?'Forecast record':'Position',state.arm==='harness'?'Forecast only; no trading.':`Starting balance: 1,000 points · exposure cap: ${maxExposure} points`,state.batch>=2?badge(state.arm==='harness'?'Saved':'Quoted'):'Waiting')}
  ${log('timer','Provider retry','Timeout on attempt 1; attempt 2 succeeded.',state.batch>=3?badge('1 retry',true):'Waiting')}
  ${log('archive','Evidence package','Manifest, forecasts, usage and attempt history',state.run==='completed'?badge('Ready'):'Waiting')}
  </div></section>`;}
@@ -194,7 +196,7 @@ function marketDashboardContent(){
  <div class="cf-log">
  ${log('circle-dot','Market opened',`${dateTime(marketTime(m,0))} · YES price ${pct(m.prices[0])}`,'')}
  ${log('file-text','Evidence update',`${dateTime(marketTime(m,24))} · source snapshot updated${a.variant==='stale feed'?'; this configuration retains its earlier feed':''}`,'')}
- ${log('gauge','Forecast recorded',`${dateTime(marketTime(m,m.hours[3]))} · ${pct(a.p[i])}${trade?` · ${trade.side}, ${trade.stake.toFixed(2)} points staked`:' · forecast-only arm'}`,'')}
+ ${log('gauge','Forecast recorded',`${dateTime(marketTime(m,m.hours[3]))} · ${pct(a.p[i])}${trade?` · ${trade.side}, ${trade.stake.toFixed(2)} points staked`:' · forecast only; no trading'}`,'')}
  ${log('scale',`Resolved ${m.outcome?'YES':'NO'}`,`${dateTime(marketTime(m,m.duration))} · ${m.outcome?'First non-NMR status: Helpful':'No qualifying Helpful first status by deadline'} · independent review`,trade?badge(signedPoints(trade.net)+' pts'):badge('No position'))}
  </div>
  <h3 class="cf-gap">Markets and resolutions</h3>
@@ -202,7 +204,7 @@ function marketDashboardContent(){
  ${marketRuns.map((r,n)=>{const t=tradeRecord(a,n,state.arm);return `<tr ${n===i?'class="cf-market-selected"':''}><td><button type="button" class="cursor-interaction" data-market="${n}" aria-pressed="${n===i}">${r.id}</button><div class="cf-muted">${r.note}</div></td><td class="cf-num">${pct(a.p[n])}</td><td class="cf-num">${pct(r.prices.at(-1))}</td><td>${r.outcome?'YES':'NO'}<div class="cf-muted">${shortDate(marketTime(r,r.duration))}</div></td><td class="cf-num">${t?signedPoints(t.net):'Not traded'}</td></tr>`;}).join('')}
  </tbody><tfoot><tr><th scope="row" colspan="4">Total · ${escape(a.variant)}</th><td class="cf-num">${state.arm==='harness'?'Not traded':signedPoints(a.points[state.arm])}</td></tr></tfoot></table></div>
  ${details('Quotes and forecasts',`<div class="cf-tablewrap"><table><thead><tr><th scope="col">Time (UTC)</th><th scope="col">YES price</th><th scope="col">Agent probability</th></tr></thead><tbody>${m.hours.map((h,n)=>`<tr><td>${dateTime(marketTime(m,h))}</td><td>${pct(m.prices[n])}</td><td>${pct(forecastAt(a,i,h))}</td></tr>`).join('')}</tbody></table></div>`)}
- ${details('Trade and scoring records',`${kv('Final forecast',pct(a.p[i]))}${kv('Outcome',String(m.outcome))}${kv('Question Brier',((a.p[i]-m.outcome)**2).toFixed(6))}${kv('Batch Brier',brier(a).toFixed(6))}${kv('Position',trade?`${trade.side} · ${trade.shares.toFixed(4)} shares`:'None')}${kv('Entry price',trade?trade.share_price.toFixed(3)+' points per share':'Not traded')}${kv('Stake / payout',trade?`${trade.stake.toFixed(2)} / ${trade.payout.toFixed(2)} points`:'Not traded')}${kv('Policy',state.arm==='fixed'?'50 points per market':state.arm==='bounded'?'min(100, 500 × absolute forecast/price difference)':'No positions')}${kv('Accounting','Synthetic fee-free shares; 1-point payout. Rounded net per market sums to the total.')}${kv('Detection status','6 outcomes; sensitivity and false-alert rates remain unestimated')}`)}`;
+ ${details('Trade and scoring records',`${kv('Final forecast',pct(a.p[i]))}${kv('Outcome',String(m.outcome))}${kv('Question Brier',((a.p[i]-m.outcome)**2).toFixed(6))}${kv('Batch Brier',brier(a).toFixed(6))}${kv('Position',trade?`${trade.side} · ${trade.shares.toFixed(4)} shares`:'None')}${kv('Entry price',trade?trade.share_price.toFixed(3)+' points per share':'Not traded')}${kv('Stake / payout',trade?`${trade.stake.toFixed(2)} / ${trade.payout.toFixed(2)} points`:'Not traded')}${kv('Policy',state.arm==='fixed'?'50 points per market':state.arm==='bounded'?`min(${maxExposure}, 500 × absolute forecast/price difference)`:'No positions')}${kv('Accounting','Synthetic fee-free shares; 1-point payout. Rounded net per market sums to the total.')}${kv('Detection status','6 outcomes; sensitivity and false-alert rates remain unestimated')}`)}`;
 }
 function renderMarketDashboard(){return `<section class="cf-panel cf-market-dashboard" id="cf-market-dashboard" aria-label="SocialPredict experiment dashboard">${marketDashboardContent()}</section>`;}
 function drawMarketChart(){
@@ -236,7 +238,7 @@ function mountMarketChart(){
 }
 function refreshMarketDashboard(){const el=q('#cf-market-dashboard');if(!el)return;if(marketChartObserver)marketChartObserver.disconnect();el.innerHTML=marketDashboardContent();icons();mountMarketChart();}
 function renderResults(){return `
- <div class="cf-row cf-between"><span class="cf-small cf-muted">6 synthetic resolved questions</span><label class="cf-field">Comparison arm<select id="cf-results-arm">${Object.entries(armNames).map(([value,name])=>`<option value="${value}" ${state.arm===value?'selected':''}>${name}</option>`).join('')}</select></label></div>
+ <div class="cf-row cf-between"><span class="cf-small cf-muted">6 synthetic resolved questions</span><label class="cf-field">Trading setup<select id="cf-results-arm">${Object.entries(armNames).map(([value,name])=>`<option value="${value}" ${state.arm===value?'selected':''}>${name}</option>`).join('')}</select></label></div>
  <section class="cf-panel"><h3>Configurations</h3><div class="cf-tablewrap"><table><thead><tr><th scope="col">Configuration</th><th scope="col" data-tooltip="Mean squared forecast error. Lower is better.">Brier ↓</th><th scope="col">Net points</th><th scope="col">Resolved</th></tr></thead><tbody>
  ${agents.map((a,i)=>`<tr><td><button class="cursor-interaction" type="button" data-agent="${i}" aria-pressed="${state.selectedAgent===i}">${escape(agentName(a))}</button><div class="cf-muted">${a.condition}</div></td><td class="cf-num">${brier(a).toFixed(3)}</td><td class="cf-num">${state.arm==='harness'?'Not traded':signedPoints(a.points[state.arm])}</td><td class="cf-num">6 / 6</td></tr>`).join('')}
  </tbody></table></div><div id="cf-agent-detail" class="cf-small cf-muted cf-gap" role="status" hidden></div></section>
@@ -272,7 +274,7 @@ function renderReview(){return `
  <div class="cf-row">${button('Save review','decision-record',true)}${button('<i data-lucide="file-json" aria-hidden="true"></i> View evidence JSON','export')}</div>
  <pre id="cf-export-preview" class="cf-mono" style="white-space:pre-wrap" hidden></pre>
  <div class="cf-status" id="cf-decision-status" role="status" ${state.recorded?'':'hidden'}>${state.recorded?'Review saved.':''}</div></div>`)}
- ${details('Evidence package',`${kv('Identity','Agent version, manifest, run and event IDs')}${kv('Experiment','Question contract, arm and limits')}${kv('Forecasts','Probabilities, outcomes and Brier scores')}${kv('Market results',state.arm==='harness'?'Forecast-only arm':'Synthetic net points')}${kv('Review','Claim status and operator rationale')}${kv('Data','Synthetic; detection and calibration unavailable')}`)}`;}
+ ${details('Evidence package',`${kv('Identity','Agent version, manifest, run and event IDs')}${kv('Experiment','Question contract, trading setup and limits')}${kv('Forecasts','Probabilities, outcomes and Brier scores')}${kv('Market results',state.arm==='harness'?'Forecast only; no trading':'Synthetic net points')}${kv('Review','Claim status and operator rationale')}${kv('Data','Synthetic; detection and calibration unavailable')}`)}`;}
 const views=[renderAgents,renderExperiment,renderRun,renderResults,renderClaims,renderReview];
 function render(){
  if(marketChartObserver){marketChartObserver.disconnect();marketChartObserver=null;}
@@ -287,7 +289,7 @@ function showStatus(selector,text){const el=q(selector);el.hidden=false;el.textC
 function evidence(){return {
  dataset:'Synthetic demo',
  manifest:{name:state.name,version:state.version,path:state.path,instructions:state.path==='hosted'?state.instructions:'Endpoint-controlled',skills:state.path==='hosted'?Object.keys(skillExamples):[],registered:state.versionSaved},
- experiment:{id:'EXP-DEMO-01',question:forecastQuestion,resolution_rule:'first-non-nmr-helpful-7d-v1',arm:state.arm,bankroll_points:1000,exposure_cap_points:100,provider_call_cap:50,run_state:state.run},
+ experiment:{id:'EXP-DEMO-01',question:forecastQuestion,resolution_rule:'first-non-nmr-helpful-7d-v1',arm:state.arm,bankroll_points:1000,exposure_cap_points:maxExposure,provider_call_cap:50,run_state:state.run},
  outcomes,results:agents.map(a=>({configuration:agentName(a),probabilities:a.p,mean_brier:brier(a),net_points:state.arm==='harness'?null:a.points[state.arm]})),
  market_runs:marketRuns.map(m=>({market:m.id,note:m.note,opened:m.start,quote_hours:m.hours,yes_prices:m.prices,resolved_at:marketTime(m,m.duration).toISOString(),outcome:m.outcome})),
  trade_ledger:agents.map(a=>({configuration:agentName(a),trades:marketRuns.map((m,i)=>tradeRecord(a,i,state.arm))})),

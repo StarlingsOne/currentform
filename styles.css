@@ -67,4 +67,5 @@ body{margin:0;padding:20px;background:light-dark(#f6f8fa,#101a22)}
 #cf-walkthrough{max-width:1320px;margin:0 auto}
 #cf-walkthrough .cf-top{padding-right:24px}
 #cf-walkthrough .cursor-interaction{cursor:pointer}
+#cf-walkthrough .cf-roleinfo{grid-column:1/-1;margin-top:-4px}#cf-walkthrough .cf-roleinfo summary{color:var(--cf-accent);font-size:11px;width:max-content}#cf-walkthrough .cf-roleinfo p{color:var(--cf-muted);margin-top:6px;max-width:62ch}
 @media(max-width:560px){body{padding:0}#cf-walkthrough .cf-shell{border:0;border-radius:0}#cf-walkthrough .cf-top{padding-right:16px}}

@@ -6,7 +6,7 @@ const source=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
 const start=source.indexOf('const agents=['),end=source.indexOf('const button=',start);
 const graphStart=source.indexOf('function drawMarketChart()'),graphEnd=source.indexOf('function mountMarketChart()',graphStart);
 const context=vm.createContext({assert,console,Intl,Date,Math,Number,ResizeObserver:function(){},nativeTooltips:function(){},state:{name:'Atlas',selectedAgent:0,selectedMarket:0},host:{clientWidth:440,innerHTML:''},escape:s=>String(s),q:function(){return this.host}});
-vm.runInContext('const q=()=>host;\n'+source.slice(start,end)+'\n'+source.slice(graphStart,graphEnd)+`
+vm.runInContext('const q=()=>host;\n'+source.match(/^const maxExposure=.*$/m)[0]+'\n'+source.slice(start,end)+'\n'+source.slice(graphStart,graphEnd)+`
  let tradesChecked=0,chartsChecked=0;
  for(let i=0;i<marketRuns.length;i++){
   const m=marketRuns[i];
@@ -19,7 +19,7 @@ vm.runInContext('const q=()=>host;\n'+source.slice(start,end)+'\n'+source.slice(
    assert.equal(forecastAt(a,i,m.hours.at(-1)),a.p[i]);
    for(const arm of ['fixed','bounded']){
     const t=tradeRecord(a,i,arm);
-    assert.ok(t.stake>=0&&t.stake<=100);
+    assert.ok(t.stake>=0&&t.stake<=maxExposure);
     assert.equal(t.net,roundPoints(t.shares*(t.side==='YES'?m.outcome:1-m.outcome)-t.stake));
     assert.ok(Math.abs(t.shares*t.share_price-t.stake)<1e-8);
     assert.ok(t.entry_hour<m.duration);
