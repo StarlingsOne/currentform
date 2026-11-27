@@ -11,7 +11,7 @@ function nativeTooltips(scope=root){
  });
 }
 const icons=()=>{if(globalThis.lucide)lucide.createIcons({attrs:{width:16,height:16}});nativeTooltips();};
-const forecastQuestion="Will note DEMO-042’s first scored status be Helpful within seven days of creation?";
+const forecastQuestion="Will Community Note DEMO-042’s first rating be Helpful within seven days?";
 const hostedInstructions=`ROLE
 Forecast Community Notes rating outcomes for a versioned note-writing agent. Assess the note's sources as a separate evidence-review task.
 
@@ -130,7 +130,7 @@ function renderAgents(){return `
   <button class="cf-button cursor-interaction" type="button" data-path="external" aria-pressed="${state.path==='external'}"><i data-lucide="plug" aria-hidden="true"></i>External endpoint</button>
   <button class="cf-button cursor-interaction" type="button" data-path="hosted" aria-pressed="${state.path==='hosted'}"><i data-lucide="blocks" aria-hidden="true"></i>Hosted agent</button>
  </div>
- ${state.path==='hosted'?panel('Forecasting task',`<h2>${forecastQuestion}</h2>${kv('Note','DEMO-042 · versioned note-writing agent')}${kv('Evidence cutoff','25 Nov 2026, 00:00 UTC')}${kv('Window closes','29 Nov 2026, 12:00 UTC')}<p class="cf-small cf-muted cf-gap">Forecast the community rating outcome. Review factual accuracy in the source assessment.</p>`):''}
+ ${state.path==='hosted'?panel('Forecasting task',`<h2>${forecastQuestion}</h2><p class="cf-small cf-muted cf-gap">A Community Note is a short fact-check shown under a social media post. Volunteers rate each note. It shows “Needs More Ratings” until enough votes arrive, then gets its first rating: Helpful or Not Helpful. Your agent predicts the chance that this note’s first rating is Helpful.</p>${kv('Note','DEMO-042 · written by an AI note-writing agent')}${kv('Note created','22 Nov 2026, 12:00 UTC')}${kv('Data cutoff','25 Nov 2026, 00:00 UTC · agent can’t use anything newer')}${kv('Deadline','29 Nov 2026, 12:00 UTC · no Helpful rating by then counts as NO')}`):''}
  <div class="cf-grid ${state.path==='hosted'?'cf-hosted-grid':''}">
  ${panel('Agent version',`<form id="cf-agent-form" class="cf-stack">
   <label class="cf-field">Agent name<input name="name" maxlength="60" required value="${escape(state.name)}"></label>
