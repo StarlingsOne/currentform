@@ -139,15 +139,15 @@ function renderAgents(){return `
   <div class="cf-row">${button('Save version','agent-save',true)}${state.versionSaved?button('Configure experiment <i data-lucide="arrow-right" aria-hidden="true"></i>','experiment'):''}</div>
   <div class="cf-status" id="cf-register-status" role="status" ${state.versionSaved?'':'hidden'}>${state.versionSaved?'Version saved.':''}</div>
  </form>`)}
- ${panel('Manifest',`${badge(state.versionSaved?'Registered':'Draft')}
+ ${panel('Agent summary',`${badge(state.versionSaved?'Registered':'Draft')}
   ${kv('Agent',`${escape(state.name)} / ${escape(state.version)}`)}
   ${kv('Connection',state.path==='external'?'External A2A':'Hosted')}
-  ${kv('Evidence feed',state.path==='hosted'?'cn-demo-001 / registry':'feed-current / snapshot-001')}
+  ${kv('Data source',state.path==='hosted'?'cn-demo-001 / registry':'feed-current / snapshot-001')}
   ${kv('Model / provider',state.path==='external'?'Unverified':'Not selected')}
   ${kv('Instructions',state.path==='external'?'Endpoint-controlled':'Attached')}
   ${state.path==='hosted'?kv('Skills','Read sources / connector / forecast math'):''}
   ${kv('Call limit','50 per run')}
-  ${details('Version rules','<p class="cf-small cf-muted">Save a new version after changing instructions or the evidence feed. External agents may conceal model or tool changes.</p>')}
+  ${details('Version rules','<p class="cf-small cf-muted">Save a new version after changing instructions or the data source. External agents may conceal model or tool changes.</p>')}
  `)}
  </div>${state.path==='hosted'?renderSkills():''}`;}
 function renderExperiment(){return `
