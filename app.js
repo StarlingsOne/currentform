@@ -105,6 +105,7 @@ const agentName=a=>`${state.name} · ${a.variant}`;
 const button=(text,action,primary=false)=>`<button type="button" class="cf-button ${primary?'primary':''} cursor-interaction" data-action="${action}">${text}</button>`;
 const badge=(text,warn=false)=>`<span class="cf-badge ${warn?'warn':''}">${text}</span>`;
 const kv=(label,value)=>`<div class="cf-kv"><span>${label}</span><span>${value}</span></div>`;
+const roleRow=(label,value,about)=>`<div class="cf-kv"><span>${label}</span><span>${value}</span><details class="cf-roleinfo"><summary class="cursor-interaction">What’s this?</summary><p>${about}</p></details></div>`;
 const panel=(title,body)=>`<section class="cf-panel"><h3>${title}</h3>${body}</section>`;
 const details=(title,body)=>`<details class="cf-detail"><summary class="cursor-interaction">${title}</summary><div class="cf-gap">${body}</div></details>`;
 const log=(icon,title,desc,status)=>`<div class="cf-logrow"><i data-lucide="${icon}" aria-hidden="true"></i><div>${title}<p>${desc}</p></div><span>${status}</span></div>`;
@@ -157,11 +158,11 @@ function renderExperiment(){return `
  ${panel('Trading setup',`${[
   ['harness','Forecast only','Probabilities and logs; no trading.'],
   ['fixed','Fixed stake','Trades from the same probabilities and prices.'],
-  ['bounded',armNames.bounded,'Agent-selected stakes, larger when it disagrees more with the market.']
+  ['bounded',armNames.bounded,'Agent-selected stakes.']
  ].map(([value,title,desc])=>`<label class="cf-arm"><input type="radio" name="cf-arm" value="${value}" ${state.arm===value?'checked':''}><div><h3>${title}</h3><p>${desc}</p></div></label>`).join('')}`)}
  <div class="cf-grid">
  ${panel('Limits',`${kv('Starting balance','1,000 points per agent')}${kv('Maximum exposure',`${maxExposure} points per question`)}${kv('Provider calls','50 per run')}${kv('Evidence / time','Equal allowance per configuration')}`)}
- ${panel('Permissions',`${kv('Participant',state.arm==='harness'?'Forecast':'Forecast, quote, place, sell')}${kv('Steward','Approve, amend, resolve')}${kv('Administrator','Accounts and permissions')}${kv('Resolution review','Appeal or void; agents cannot score themselves')}`)}
+ ${panel('Permissions',`${roleRow('Participant',state.arm==='harness'?'Forecast':'Forecast, quote, place, sell',state.arm==='harness'?'The agent being tested. It submits a probability for each question and nothing else.':'The agent being tested. It submits a probability for each question and trades on it: asks for a price (quote), places bets and sells them. It can’t change the rules or decide outcomes.')}${roleRow('Steward','Approve, amend, resolve','The person running the experiment. They approve the setup, can amend it, and resolve each question by recording the final YES or NO.')}${roleRow('Administrator','Accounts and permissions','Manages user accounts and decides who gets which role.')}${roleRow('Resolution review','Appeal or void; agents cannot score themselves','Not a role, but the safeguard on outcomes. A result can be appealed, or voided so it’s left out of scoring. Agents can never mark their own forecasts.')}`)}
  </div>
  ${details('Evaluation plan',`${kv('Planned workload','120 questions / 6 batches / 4 configurations / 3 repeats')}${kv('Demo dataset','6 synthetic binary outcomes')}${kv('Pool design','Independent pools or frozen opponents')}${kv('Resolution changes','Versioned rule, review reason and appeal record')}`)}
  <div class="cf-row">${button('Open run <i data-lucide="arrow-right" aria-hidden="true"></i>','run',true)}</div>`;}
