@@ -253,7 +253,7 @@ function renderClaims(){return `
  ${kv('Status',state.claim==='resolved'?'Resolved YES':state.claim==='void'?'Voided':'Awaiting resolution')}
  ${kv('Outcome evidence',state.claim==='resolved'?'First scored status: Helpful at 72 hours (synthetic)':state.claim==='void'?'Ambiguous event definition':'Pending status history')}
  <div class="cf-row cf-gap">
- ${button(state.hook?'Replay event':'Register claim event','hook',!state.hook)}
+ ${button(state.hook?'Replay event':'Register claim','hook',!state.hook)}
  ${state.hook&&state.claim==='unresolved'?button('Approve YES','claim-resolve',true)+button('Void claim','claim-void'):''}
  ${state.claim==='resolved'?button('Appeal resolution','claim-appeal'):''}
  </div><div class="cf-status cf-gap" id="cf-hook-status" role="status" ${state.hook?'':'hidden'}>${state.claim==='void'?'Voided claim; excluded from scoring.':state.claim==='resolved'?'Reviewer approval recorded.':state.hook?'Claim registered.':''}</div></section>
