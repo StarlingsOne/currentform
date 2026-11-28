@@ -12,6 +12,7 @@ function nativeTooltips(scope=root){
 }
 const icons=()=>{if(globalThis.lucide)lucide.createIcons({attrs:{width:16,height:16}});nativeTooltips();};
 const maxExposure=100; // maximum points an agent may stake on one question
+const minResolvedForVerdict=30; // resolved questions needed before the evidence summary gives a verdict
 const forecastQuestion="Will Community Note DEMO-042’s first rating be Helpful within seven days?";
 const hostedInstructions=`ROLE
 Forecast Community Notes rating outcomes for a versioned note-writing agent. Assess the note's sources as a separate evidence-review task.
@@ -271,8 +272,8 @@ function renderReview(){return `
   ['restrict','Restrict','Recommend a narrower role pending review.']
  ].map(([value,title,desc])=>`<label class="cf-choice"><input type="radio" name="cf-decision" value="${value}" ${state.decision===value?'checked':''}><div><strong>${title}</strong><p>${desc}</p></div></label>`).join('')}
  <label class="cf-field">Rationale<textarea id="cf-decision-note" maxlength="1200">${escape(state.note)}</textarea></label>
- <div class="cf-row">${button('Save review','decision-record',true)}${button('<i data-lucide="file-json" aria-hidden="true"></i> View evidence JSON','export')}</div>
- <pre id="cf-export-preview" class="cf-mono" style="white-space:pre-wrap" hidden></pre>
+ <div class="cf-row">${button('Save review','decision-record',true)}${button('<i data-lucide="file-text" aria-hidden="true"></i> View evidence summary','export')}</div>
+ <div id="cf-export-preview" class="cf-evidence" hidden></div>
  <div class="cf-status" id="cf-decision-status" role="status" ${state.recorded?'':'hidden'}>${state.recorded?'Review saved.':''}</div></div>`)}
  ${details('Evidence package',`${kv('Identity','Agent version, manifest, run and event IDs')}${kv('Experiment','Question contract, trading setup and limits')}${kv('Forecasts','Probabilities, outcomes and Brier scores')}${kv('Market results',state.arm==='harness'?'Forecast only; no trading':'Synthetic net points')}${kv('Review','Claim status and operator rationale')}${kv('Data','Synthetic; detection and calibration unavailable')}`)}`;}
 const views=[renderAgents,renderExperiment,renderRun,renderResults,renderClaims,renderReview];
@@ -297,6 +298,53 @@ function evidence(){return {
  review:{decision:state.decision,rationale:state.note,saved:state.recorded},
  detection:'Insufficient observations'
 };}
+const coinFlipBrier=.25;
+const claimStatusText={unresolved:'Awaiting resolution',resolved:'Resolved YES',void:'Voided; excluded from scoring'};
+const decisionText={investigate:'Investigate',retain:'Retain',restrict:'Restrict'};
+function evidenceVerdict(e){
+ const n=e.outcomes.length,worse=e.results.filter(r=>r.mean_brier>coinFlipBrier);
+ if(n<minResolvedForVerdict)return {level:'warn',icon:'triangle-alert',title:'Insufficient evidence',text:`Only ${n} resolved questions. At least ${minResolvedForVerdict} are needed to judge this agent reliably or detect decline.`};
+ if(worse.length)return {level:'warn',icon:'triangle-alert',title:'Variant underperforming',text:`${worse.length} of ${e.results.length} variants scored worse than guessing.`};
+ return {level:'ok',icon:'circle-check',title:'No issues found',text:`All ${e.results.length} variants beat guessing across ${n} resolved questions.`};
+}
+function brierChart(e){
+ const rows=e.results.map((r,i)=>({name:agents[i].variant,b:r.mean_brier,points:r.net_points}));
+ const W=560,rowH=36,top=30,labelW=124,plotW=W-labelW-150,max=Math.max(.4,Math.ceil(Math.max(...rows.map(r=>r.b))*10)/10);
+ const H=top+rows.length*rowH+30,x=v=>labelW+plotW*v/max,ticks=[];
+ for(let t=0;t<=max+1e-9;t+=.1)ticks.push(+t.toFixed(1));
+ return `<svg class="cf-brier-svg" viewBox="0 0 ${W} ${H}" role="img" aria-labelledby="cf-brier-title cf-brier-desc">
+ <title id="cf-brier-title">Brier score by variant</title>
+ <desc id="cf-brier-desc">Lower is better; always guessing 50% scores ${coinFlipBrier}. ${rows.map(r=>`${escape(r.name)} ${r.b.toFixed(3)}`).join(', ')}.</desc>
+ ${ticks.map(t=>`<line class="cf-gridline" x1="${x(t)}" y1="${top-6}" x2="${x(t)}" y2="${H-24}"/><text class="cf-axis" x="${x(t)}" y="${H-8}" text-anchor="middle">${t.toFixed(1)}</text>`).join('')}
+ <line class="cf-brier-ref" x1="${x(coinFlipBrier)}" y1="${top-12}" x2="${x(coinFlipBrier)}" y2="${H-24}"/>
+ <text class="cf-axis" x="${x(coinFlipBrier)}" y="${top-17}" text-anchor="middle">Coin flip (${coinFlipBrier.toFixed(2)})</text>
+ ${rows.map((r,i)=>{const y=top+i*rowH,bad=r.b>coinFlipBrier,tip=`${r.name}: Brier ${r.b.toFixed(3)}${bad?', worse than guessing':''}${r.points===null?'':` · ${signedPoints(r.points)} points`}`;
+  return `<g class="cf-brier-row" data-tooltip="${escape(tip)}"><rect class="cf-brier-hit" x="0" y="${y}" width="${W}" height="${rowH}" rx="6"/>
+  <text class="cf-brier-label" x="${labelW-12}" y="${y+rowH/2+4}" text-anchor="end">${escape(r.name)}</text>
+  <rect class="cf-brier-bar${bad?' bad':''}" x="${labelW}" y="${y+rowH/2-7}" width="${Math.max(2,x(r.b)-labelW)}" height="14" rx="4"/>
+  <text class="cf-brier-value" x="${x(r.b)+8}" y="${y+rowH/2+4}">${r.b.toFixed(3)}${bad?' · worse than guessing':''}</text></g>`;}).join('')}
+ </svg>`;
+}
+function renderEvidenceSummary(e){
+ const v=evidenceVerdict(e),ranked=e.results.map((r,i)=>({...r,variant:agents[i].variant})).sort((a,b)=>a.mean_brier-b.mean_brier);
+ const best=ranked[0],worst=ranked.at(-1),pts=r=>r.net_points===null?'':` · ${signedPoints(r.net_points)} points`;
+ const m=e.manifest,c=e.claim,rv=e.review;
+ return `<div class="cf-verdict ${v.level}" role="status"><i data-lucide="${v.icon}" aria-hidden="true"></i><div><strong>${v.title}</strong><p>${v.text}</p></div></div>
+ <h3 class="cf-gap">Evidence summary</h3>
+ <div>
+ ${kv('Agent',`${escape(m.name)} / ${escape(m.version)} · ${m.path==='hosted'?'Hosted':'External endpoint'} · ${m.registered?'version saved':'unsaved draft'}`)}
+ ${kv('Question',escape(e.experiment.question))}
+ ${kv('Trading setup',armNames[e.experiment.arm])}
+ ${kv('Best variant',`${escape(best.variant)} · Brier ${best.mean_brier.toFixed(3)}${pts(best)}`)}
+ ${kv('Worst variant',`${escape(worst.variant)} · Brier ${worst.mean_brier.toFixed(3)}${worst.mean_brier>coinFlipBrier?' (worse than guessing)':''}${pts(worst)}`)}
+ ${kv('Claim',`${c.id} · ${c.registered?claimStatusText[c.status]:'not registered yet'}`)}
+ ${kv('Your review',`${decisionText[rv.decision]}${rv.rationale?` · “${escape(rv.rationale)}”`:''}${rv.saved?'':' (not saved)'}`)}
+ </div>
+ <h3 class="cf-gap">Forecast accuracy by variant</h3>
+ <p class="cf-small cf-muted">Brier score: lower is better. Always guessing 50% scores ${coinFlipBrier.toFixed(2)}, so a bar past the dashed line did worse than guessing.</p>
+ <div class="cf-brier-chart">${brierChart(e)}</div>
+ ${details('Raw evidence JSON',`<pre class="cf-mono">${escape(JSON.stringify(e,null,2))}</pre>`)}`;
+}
 function saveAgent(formElement){
  if(!formElement.reportValidity())return;
  const form=new FormData(formElement);
@@ -340,7 +388,7 @@ root.addEventListener('click',event=>{
  if(action==='decision-record'){state.note=q('#cf-decision-note').value;state.recorded=true;}
  if(action==='export'){
   state.note=q('#cf-decision-note').value;
-  q('#cf-export-preview').textContent=JSON.stringify(evidence(),null,2);q('#cf-export-preview').hidden=false;return;
+  const preview=q('#cf-export-preview');preview.innerHTML=renderEvidenceSummary(evidence());preview.hidden=false;icons();return;
  }
  render();persist();
 });
