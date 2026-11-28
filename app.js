@@ -243,8 +243,8 @@ function renderResults(){return `
  ${agents.map((a,i)=>`<tr><td><button class="cursor-interaction" type="button" data-agent="${i}" aria-pressed="${state.selectedAgent===i}">${escape(agentName(a))}</button><div class="cf-muted">${a.condition}</div></td><td class="cf-num">${brier(a).toFixed(3)}</td><td class="cf-num">${state.arm==='harness'?'Not traded':signedPoints(a.points[state.arm])}</td><td class="cf-num">6 / 6</td></tr>`).join('')}
  </tbody></table></div><div id="cf-agent-detail" class="cf-small cf-muted cf-gap" role="status" hidden></div></section>
  ${details('Score definitions',`${kv('Brier score','Mean squared probability error; lower is better')}${kv('50% baseline','0.250 Brier')}${kv('Net points','Illustrative profit after settlement')}${kv('Starting balance','1,000 points per agent')}${kv('Calibration','Insufficient observations')}`)}
- ${panel('Deterioration detection',`${badge('Insufficient observations',true)}${kv('Sensitivity / false alerts','Not estimated')}${kv('Detection lag','Not estimated')}${details('Comparison method','<p class="cf-small cf-muted">Compare a score/log detector with one that adds market behavior. Lock both rules before a held-out comparison; match the false-alert rate and review workload.</p>')}`)}
- ${renderMarketDashboard()}`;}
+ ${renderMarketDashboard()}
+ ${panel('Are the agents getting worse over time?',`${badge('Insufficient observations',true)}${kv('Sensitivity / false alerts','Not estimated')}${kv('Detection lag','Not estimated')}${details('Comparison method','<p class="cf-small cf-muted">Compare a score/log detector with one that adds market behavior. Lock both rules before a held-out comparison; match the false-alert rate and review workload.</p>')}`)}`;}
 function renderClaims(){return `
  <section class="cf-panel"><div class="cf-row cf-between"><span class="cf-mono">CLM-DEMO-042</span>${badge(state.hook?'Registered':'Draft')}</div>
  <h2 class="cf-gap">Note DEMO-042’s first scored status will be Helpful within seven days.</h2>
